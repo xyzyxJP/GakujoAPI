@@ -140,7 +140,12 @@ class Report:
                 element.xpath('td')[4].text.strip())
 
     def __eq__(self, other):
+        if not isinstance(other, Report):
+            return False
         return self.subject_code == other.subject_code and self.class_code == other.class_code and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id, self.subject_code, self.class_code)
 
     def apply_details(self, document):
         self.evaluation_method = document.xpath(
