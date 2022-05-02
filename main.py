@@ -95,8 +95,15 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
         '/html/body/div[1]/form[1]/div/input/@value')
-    report.apply_details(document)
-    return report
+    evaluation_method = document.xpath(
+        '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[3]/td')[0].text
+    description = Parse.html_newlines(document.xpath(
+        '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[4]/td')[0].text_content())
+    # required to replace innerHtml
+    message = Parse.html_newlines(document.xpath(
+        '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[5]/td')[0].text_content())
+    # required to replace innerHtml
+    return {'evaluation_method': evaluation_method, 'description': description, 'message': message}
 
 
 class Report:
@@ -146,16 +153,6 @@ class Report:
 
     def __hash__(self):
         return hash(self.id, self.subject_code, self.class_code)
-
-    def apply_details(self, document):
-        self.evaluation_method = document.xpath(
-            '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[3]/td')[0].text
-        self.description = Parse.html_newlines(document.xpath(
-            '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[4]/td')[0].text_content())
-        # required to replace innerHtml
-        self.message = Parse.html_newlines(document.xpath(
-            '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[5]/td')[0].text_content())
-        # required to replace innerHtml
 
 
 @ manager.user_loader
