@@ -108,22 +108,6 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
 
 
 class Report:
-    subjects = ''
-    title = ''
-    id = ''
-    school_year = ''
-    subject_code = ''
-    class_code = ''
-    status = ''
-    start_date_time = datetime.min
-    end_date_time = datetime.min
-    implementation_format = ''
-    operation = ''
-    submitted_date_time = datetime.min
-    evaluation_method = ''
-    description = ''
-    message = ''
-
     def __init__(self, element):
         self.subjects = Parse.space(element.xpath('td')[0].text)
         self.title = element.xpath('td')[1].xpath('a')[0].text.strip()
@@ -149,6 +133,36 @@ class Report:
 
     def __eq__(self, other):
         if not isinstance(other, Report):
+            return False
+        return self.subject_code == other.subject_code and self.class_code == other.class_code and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id, self.subject_code, self.class_code)
+
+
+class Quiz:
+    def __init__(self, element):
+        self.subjects = Parse.space(element.xpath('td')[0].text)
+        self.title = element.xpath('td')[1].xpath('a')[0].text.strip()
+        self.id = Parse.js_args(element.xpath(
+            'td')[1].xpath('a')[0].attrib['onclick'], 1)
+        self.school_year = Parse.js_args(
+            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 3)
+        self.subject_code = Parse.js_args(
+            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 4)
+        self.class_code = Parse.js_args(
+            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5)
+        self.status = element.xpath('td')[2].text.strip()
+        self.start_date_time = Parse.time_span(
+            element.xpath('td')[3].text, 0)
+        self.end_date_time = Parse.time_span(
+            element.xpath('td')[3].text, 1)
+        self.submission_status = element.xpath('td')[4].text.strip()
+        self.implementation_format = element.xpath('td')[5].text.strip()
+        self.operation = element.xpath('td')[6].text.strip()
+
+    def __eq__(self, other):
+        if not isinstance(other, Quiz):
             return False
         return self.subject_code == other.subject_code and self.class_code == other.class_code and self.id == other.id
 
