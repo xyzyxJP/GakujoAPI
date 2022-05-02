@@ -107,6 +107,24 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
     return {'evaluation_method': evaluation_method, 'description': description, 'message': message}
 
 
+@app.get('/quizzes')
+async def get_quizzes(session=Depends(manager)):
+    response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
+        'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '小テスト一覧', 'menuCode': 'A03', 'nextPath': '/test/student/searchList/initialize'})
+    document = etree.fromstring(response.text)
+    session['apache_token'] = document.xpath(
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
+    response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/test/student/searchList/search', data={
+        'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'testId': '', 'hidSchoolYear': '', 'hidSemesterCode': '', 'hidSubjectCode': '', 'hidClassCode': '', 'entranceDiv': '', 'backPath': '', 'listSchoolYear': '', 'listSubjectCode': '', 'listClassCode': '', 'schoolYear': '2022', 'semesterCode': '1', 'subjectDispCode': '', 'operationFormat': ['1', '2'], 'searchList_length': '-1', '_searchConditionDisp.accordionSearchCondition': 'true', '_screenIdentifier': 'SC_A03_01_G', '_screenInfoDisp': '', '_scrollTop': '0'})
+    document = etree.fromstring(response.text)
+    session['apache_token'] = document.xpath(
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
+    quizzes = []
+    for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
+        quizzes.append(Quiz(x))
+    return quizzes
+
+
 class Report:
     def __init__(self, element):
         self.subjects = Parse.space(element.xpath('td')[0].text)
