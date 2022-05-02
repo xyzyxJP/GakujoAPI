@@ -12,6 +12,7 @@ import hashlib
 import requests
 from lxml import html as etree
 from dateutil import parser
+from typing import List, Optional
 
 # uvicorn main:app --reload
 app = FastAPI()
@@ -46,12 +47,100 @@ class Parse:
         return pattern.format(**d)
 
 
+class Report(BaseModel):
+    subjects: str
+    id: str
+    school_year: str
+    subject_code: str
+    class_code: str
+    status: str
+    start_date_time: str
+    end_date_time: str
+    implementation_format: str
+    operation: str
+    submitted_date_time: Optional[str] = None
+
+    def __init__(self, element):
+        self.subjects = Parse.space(element.xpath('td')[0].text)
+        self.title = element.xpath('td')[1].xpath('a')[0].text.strip()
+        self.id = Parse.js_args(element.xpath(
+            'td')[1].xpath('a')[0].attrib['onclick'], 1)
+        self.school_year = Parse.js_args(
+            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 3)
+        self.subject_code = Parse.js_args(
+            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 4)
+        self.class_code = Parse.js_args(
+            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5)
+        self.status = element.xpath('td')[2].text.strip()
+        self.start_date_time = Parse.time_span(
+            element.xpath('td')[3].text, 0)
+        self.end_date_time = Parse.time_span(
+            element.xpath('td')[3].text, 1)
+        self.implementation_format = element.xpath('td')[
+            5].text.strip()
+        self.operation = element.xpath('td')[6].text.strip()
+        if element.xpath('td')[4].text != None:
+            self.submitted_date_time = parser.parse(
+                element.xpath('td')[4].text.strip())
+
+    def __eq__(self, other):
+        if not isinstance(other, Report):
+            return False
+        return self.subject_code == other.subject_code and self.class_code == other.class_code and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id, self.subject_code, self.class_code)
+
+
+class Quiz(BaseModel):
+    subjects: str
+    title: str
+    id: str
+    school_year: str
+    subject_code: str
+    class_code: str
+    status: str
+    start_date_time: str
+    end_date_time: str
+    submission_status: str
+    implementation_format: str
+    operation: str
+
+    def __init__(self, element):
+        self.subjects = Parse.space(element.xpath('td')[0].text)
+        self.title = element.xpath('td')[1].xpath('a')[0].text.strip()
+        self.id = Parse.js_args(element.xpath(
+            'td')[1].xpath('a')[0].attrib['onclick'], 1)
+        self.school_year = Parse.js_args(
+            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 3)
+        self.subject_code = Parse.js_args(
+            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 4)
+        self.class_code = Parse.js_args(
+            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5)
+        self.status = element.xpath('td')[2].text.strip()
+        self.start_date_time = Parse.time_span(
+            element.xpath('td')[3].text, 0)
+        self.end_date_time = Parse.time_span(
+            element.xpath('td')[3].text, 1)
+        self.submission_status = element.xpath('td')[4].text.strip()
+        self.implementation_format = element.xpath('td')[5].text.strip()
+        self.operation = element.xpath('td')[6].text.strip()
+
+    def __eq__(self, other):
+        if not isinstance(other, Quiz):
+            return False
+        return self.subject_code == other.subject_code and self.class_code == other.class_code and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id, self.subject_code, self.class_code)
+
+
 @app.get('/')
 async def index(session=Depends(manager)):
     return {'user_id': session['user_id'], 'password': session['password'], 'apache_token': session['apache_token'], 'login_datetime': session['login_datetime']}
 
 
-@app.get('/report')
+@app.get('/report', response_model=List[Report])
 async def get_reports(session=Depends(manager)):
     response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '授業サポート', 'menuCode': 'A02', 'nextPath': '/report/student/searchList/initialize'})
@@ -107,7 +196,7 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
     return {'evaluation_method': evaluation_method, 'description': description, 'message': message}
 
 
-@app.get('/quizzes')
+@app.get('/quizzes', response_model=List[Quiz])
 async def get_quizzes(session=Depends(manager)):
     response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '小テスト一覧', 'menuCode': 'A03', 'nextPath': '/test/student/searchList/initialize'})
@@ -123,69 +212,6 @@ async def get_quizzes(session=Depends(manager)):
     for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
         quizzes.append(Quiz(x))
     return quizzes
-
-
-class Report:
-    def __init__(self, element):
-        self.subjects = Parse.space(element.xpath('td')[0].text)
-        self.title = element.xpath('td')[1].xpath('a')[0].text.strip()
-        self.id = Parse.js_args(element.xpath(
-            'td')[1].xpath('a')[0].attrib['onclick'], 1)
-        self.school_year = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 3)
-        self.subject_code = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 4)
-        self.class_code = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5)
-        self.status = element.xpath('td')[2].text.strip()
-        self.start_date_time = Parse.time_span(
-            element.xpath('td')[3].text, 0)
-        self.end_date_time = Parse.time_span(
-            element.xpath('td')[3].text, 1)
-        self.implementation_format = element.xpath('td')[
-            5].text.strip()
-        self.operation = element.xpath('td')[6].text.strip()
-        if element.xpath('td')[4].text != None:
-            self.submitted_date_time = parser.parse(
-                element.xpath('td')[4].text.strip())
-
-    def __eq__(self, other):
-        if not isinstance(other, Report):
-            return False
-        return self.subject_code == other.subject_code and self.class_code == other.class_code and self.id == other.id
-
-    def __hash__(self):
-        return hash(self.id, self.subject_code, self.class_code)
-
-
-class Quiz:
-    def __init__(self, element):
-        self.subjects = Parse.space(element.xpath('td')[0].text)
-        self.title = element.xpath('td')[1].xpath('a')[0].text.strip()
-        self.id = Parse.js_args(element.xpath(
-            'td')[1].xpath('a')[0].attrib['onclick'], 1)
-        self.school_year = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 3)
-        self.subject_code = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 4)
-        self.class_code = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5)
-        self.status = element.xpath('td')[2].text.strip()
-        self.start_date_time = Parse.time_span(
-            element.xpath('td')[3].text, 0)
-        self.end_date_time = Parse.time_span(
-            element.xpath('td')[3].text, 1)
-        self.submission_status = element.xpath('td')[4].text.strip()
-        self.implementation_format = element.xpath('td')[5].text.strip()
-        self.operation = element.xpath('td')[6].text.strip()
-
-    def __eq__(self, other):
-        if not isinstance(other, Quiz):
-            return False
-        return self.subject_code == other.subject_code and self.class_code == other.class_code and self.id == other.id
-
-    def __hash__(self):
-        return hash(self.id, self.subject_code, self.class_code)
 
 
 @ manager.user_loader
