@@ -214,7 +214,7 @@ async def get_quizzes(session=Depends(manager)):
     return quizzes
 
 
-@ manager.user_loader
+@manager.user_loader
 def load_session(user_id: str):
     return next((x for x in sessions if x['user_id'] == user_id), None)
 
@@ -252,7 +252,7 @@ def login(user_id, password):
     return {'user_id': user_id, 'password': hashed_password, 'session': session, 'apache_token': apache_token, 'login_datetime': login_datetime}
 
 
-@ app.post('/auth')
+@app.post('/auth')
 async def auth(data: OAuth2PasswordRequestForm = Depends()):
     user_id = data.username
     password = data.password
