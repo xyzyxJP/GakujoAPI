@@ -13,6 +13,7 @@ import requests
 from lxml import html as etree
 from dateutil import parser
 
+# uvicorn main:app --reload
 app = FastAPI()
 manager = LoginManager(
     '1e4179dc8adab15e29cbcbb588af4a71bd54e7cfc99d0652', '/auth')
@@ -56,12 +57,12 @@ async def get_reports(session=Depends(manager)):
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '授業サポート', 'menuCode': 'A02', 'nextPath': '/report/student/searchList/initialize'})
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
-        '/html/body/div[1]/form[1]/div/input/@value')
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
     response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/report/student/searchList/search', data={
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'reportId': '', 'hidSchoolYear': '', 'hidSemesterCode': '', 'hidSubjectCode': '', 'hidClassCode': '', 'entranceDiv': '', 'backPath': '', 'listSchoolYear': '', 'listSubjectCode': '', 'listClassCode': '', 'schoolYear': '2022', 'semesterCode': '1', 'subjectDispCode': '', 'operationFormat': ['1', '2'], 'searchList_length': '-1', '_searchConditionDisp.accordionSearchCondition': 'true', '_screenIdentifier': 'SC_A02_01_G', '_screenInfoDisp': '', '_scrollTop': '0'})
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
-        '/html/body/div[1]/form[1]/div/input/@value')
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
     reports = []
     for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
         reports.append(Report(x))
@@ -75,12 +76,12 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '授業サポート', 'menuCode': 'A02', 'nextPath': '/report/student/searchList/initialize'})
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
-        '/html/body/div[1]/form[1]/div/input/@value')
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
     response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/report/student/searchList/search', data={
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'reportId': '', 'hidSchoolYear': '', 'hidSemesterCode': '', 'hidSubjectCode': '', 'hidClassCode': '', 'entranceDiv': '', 'backPath': '', 'listSchoolYear': '', 'listSubjectCode': '', 'listClassCode': '', 'schoolYear': '2022', 'semesterCode': '1', 'subjectDispCode': '', 'operationFormat': ['1', '2'], 'searchList_length': '-1', '_searchConditionDisp.accordionSearchCondition': 'true', '_screenIdentifier': 'SC_A02_01_G', '_screenInfoDisp': '', '_scrollTop': '0'})
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
-        '/html/body/div[1]/form[1]/div/input/@value')
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
     for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
         x = Report(x)
         if x.id == id and x.subject_code == subject_code and x.class_code == class_code:
@@ -94,7 +95,7 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
             'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'reportId': id, 'hidSchoolYear': '', 'hidSemesterCode': '', 'hidSubjectCode': '', 'hidClassCode': '', 'entranceDiv': '', 'backPath': '', 'listSchoolYear':  '2022', 'listSubjectCode': subject_code, 'listClassCode': class_code, 'schoolYear': '2022', 'semesterCode': '0', 'subjectDispCode': '', 'operationFormat': ['1', '2'], 'searchList_length': '-1', '_searchConditionDisp.accordionSearchCondition': 'true', '_screenIdentifier': 'SC_A02_01_G', '_screenInfoDisp': '', '_scrollTop': '0'})
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
-        '/html/body/div[1]/form[1]/div/input/@value')
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
     evaluation_method = document.xpath(
         '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[3]/td')[0].text
     description = Parse.html_newlines(document.xpath(
