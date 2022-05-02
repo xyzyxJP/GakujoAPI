@@ -63,28 +63,20 @@ class Report(BaseModel):
     description: Optional[str] = None
     message: Optional[str] = None
 
-    def __init__(self, element):
-        self.subjects = Parse.space(element.xpath('td')[0].text)
-        self.title = element.xpath('td')[1].xpath('a')[0].text.strip()
-        self.id = Parse.js_args(element.xpath(
-            'td')[1].xpath('a')[0].attrib['onclick'], 1)
-        self.school_year = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 3)
-        self.subject_code = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 4)
-        self.class_code = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5)
-        self.status = element.xpath('td')[2].text.strip()
-        self.start_date_time = Parse.time_span(
-            element.xpath('td')[3].text, 0)
-        self.end_date_time = Parse.time_span(
-            element.xpath('td')[3].text, 1)
-        self.implementation_format = element.xpath('td')[
-            5].text.strip()
-        self.operation = element.xpath('td')[6].text.strip()
-        if element.xpath('td')[4].text != None:
-            self.submitted_date_time = parser.parse(
-                element.xpath('td')[4].text.strip())
+
+def element_to_report(element):
+    report = Report(subjects=Parse.space(element.xpath('td')[0].text), title=element.xpath('td')[1].xpath('a')[0].text.strip(), id=Parse.js_args(element.xpath(
+        'td')[1].xpath('a')[0].attrib['onclick'], 1), school_year=Parse.js_args(
+        element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 3), subject_code=Parse.js_args(
+        element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 4), class_code=Parse.js_args(
+        element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5), status=element.xpath('td')[2].text.strip(), start_date_time=Parse.time_span(
+        element.xpath('td')[3].text, 0), end_date_time=Parse.time_span(
+        element.xpath('td')[3].text, 1), implementation_format=element.xpath('td')[
+        5].text.strip(), operation=element.xpath('td')[6].text.strip())
+    if element.xpath('td')[4].text != None:
+        report.submitted_date_time = parser.parse(
+            element.xpath('td')[4].text.strip())
+    return report
 
 
 class Quiz(BaseModel):
@@ -105,33 +97,23 @@ class Quiz(BaseModel):
     description: Optional[str] = None
     message: Optional[str] = None
 
-    def __init__(self, element):
-        self.subjects = Parse.space(element.xpath('td')[0].text)
-        self.title = element.xpath('td')[1].xpath('a')[0].text.strip()
-        self.id = Parse.js_args(element.xpath(
-            'td')[1].xpath('a')[0].attrib['onclick'], 1)
-        self.school_year = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 3)
-        self.subject_code = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 4)
-        self.class_code = Parse.js_args(
-            element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5)
-        self.status = element.xpath('td')[2].text.strip()
-        self.start_date_time = Parse.time_span(
-            element.xpath('td')[3].text, 0)
-        self.end_date_time = Parse.time_span(
-            element.xpath('td')[3].text, 1)
-        self.submission_status = element.xpath('td')[4].text.strip()
-        self.implementation_format = element.xpath('td')[5].text.strip()
-        self.operation = element.xpath('td')[6].text.strip()
+
+def element_to_quiz(element):
+    return Quiz(subjects=Parse.space(element.xpath('td')[0].text), title=element.xpath('td')[1].xpath('a')[0].text.strip(), id=Parse.js_args(element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 1),
+                school_year=Parse.js_args(
+        element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 3), subject_code=Parse.js_args(
+        element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 4), class_code=Parse.js_args(
+        element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5), status=element.xpath('td')[2].text.strip(), start_date_time=Parse.time_span(
+            element.xpath('td')[3].text, 0), end_date_time=Parse.time_span(
+            element.xpath('td')[3].text, 1), submission_status=element.xpath('td')[4].text.strip(), implementation_format=element.xpath('td')[5].text.strip(), operation=element.xpath('td')[6].text.strip())
 
 
-@app.get('/')
+@ app.get('/')
 async def index(session=Depends(manager)):
     return {'user_id': session['user_id'], 'password': session['password'], 'apache_token': session['apache_token'], 'login_datetime': session['login_datetime']}
 
 
-@app.get('/report', response_model=List[Report])
+@ app.get('/reports', response_model=List[Report])
 async def get_reports(session=Depends(manager)):
     response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '授業サポート', 'menuCode': 'A02', 'nextPath': '/report/student/searchList/initialize'})
@@ -145,11 +127,11 @@ async def get_reports(session=Depends(manager)):
         '/html/body/div[1]/form[1]/div/input/@value')[0]
     reports = []
     for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
-        reports.append(Report(x))
+        reports.append(element_to_report(x))
     return reports
 
 
-@app.get('/report/{id}', response_model=Report)
+@ app.get('/report/{id}', response_model=Report)
 async def get_report(id: str, subject_code: str, class_code: str, session=Depends(manager)):
     response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '授業サポート', 'menuCode': 'A02', 'nextPath': '/report/student/searchList/initialize'})
@@ -163,7 +145,7 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
         '/html/body/div[1]/form[1]/div/input/@value')[0]
     report = None
     for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
-        x = Report(x)
+        x = element_to_report(x)
         if x.id == id and x.subject_code == subject_code and x.class_code == class_code:
             report = x
             break
@@ -188,7 +170,7 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
     return report
 
 
-@app.get('/quizzes', response_model=List[Quiz])
+@ app.get('/quizzes', response_model=List[Quiz])
 async def get_quizzes(session=Depends(manager)):
     response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '小テスト一覧', 'menuCode': 'A03', 'nextPath': '/test/student/searchList/initialize'})
@@ -202,11 +184,11 @@ async def get_quizzes(session=Depends(manager)):
         '/html/body/div[1]/form[1]/div/input/@value')[0]
     quizzes = []
     for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
-        quizzes.append(Quiz(x))
+        quizzes.append(element_to_quiz(x))
     return quizzes
 
 
-@app.get('/quiz/{id}', response_model=Quiz)
+@ app.get('/quiz/{id}', response_model=Quiz)
 async def get_quiz(id: str, subject_code: str, class_code: str, session=Depends(manager)):
     response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '小テスト一覧', 'menuCode': 'A03', 'nextPath': '/test/student/searchList/initialize'})
@@ -220,7 +202,7 @@ async def get_quiz(id: str, subject_code: str, class_code: str, session=Depends(
         '/html/body/div[1]/form[1]/div/input/@value')[0]
     quiz = None
     for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
-        x = Quiz(x)
+        x = element_to_quiz(x)
         if x.id == id and x.subject_code == subject_code and x.class_code == class_code:
             quiz = x
             break
@@ -236,7 +218,7 @@ async def get_quiz(id: str, subject_code: str, class_code: str, session=Depends(
     element = document.xpath(
         '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/div/table')[0]
     quiz.questions_count = int(element.xpath('tr')[2].xpath('td')[
-                               0].text.replace('問', '').strip())
+        0].text.replace('問', '').strip())
     quiz.evaluation_method = element.xpath('tr')[3].xpath('td')[0].text
     quiz.description = Parse.html_newlines(
         element.xpath('tr')[4].xpath('td')[0].text_content())
@@ -247,7 +229,7 @@ async def get_quiz(id: str, subject_code: str, class_code: str, session=Depends(
     return quiz
 
 
-@manager.user_loader
+@ manager.user_loader
 def load_session(user_id: str):
     return next((x for x in sessions if x['user_id'] == user_id), None)
 
@@ -285,7 +267,7 @@ def login(user_id, password):
     return {'user_id': user_id, 'password': hashed_password, 'session': session, 'apache_token': apache_token, 'login_datetime': login_datetime}
 
 
-@app.post('/auth')
+@ app.post('/auth')
 async def auth(data: OAuth2PasswordRequestForm = Depends()):
     user_id = data.username
     password = data.password
