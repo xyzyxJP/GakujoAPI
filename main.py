@@ -54,11 +54,14 @@ class Report(BaseModel):
     subject_code: str
     class_code: str
     status: str
-    start_date_time: str
-    end_date_time: str
+    start_date_time: datetime
+    end_date_time: datetime
     implementation_format: str
     operation: str
-    submitted_date_time: Optional[str] = None
+    submitted_date_time: Optional[datetime] = None
+    evaluation_method: Optional[str] = None
+    description: Optional[str] = None
+    message: Optional[str] = None
 
     def __init__(self, element):
         self.subjects = Parse.space(element.xpath('td')[0].text)
@@ -83,14 +86,6 @@ class Report(BaseModel):
             self.submitted_date_time = parser.parse(
                 element.xpath('td')[4].text.strip())
 
-    def __eq__(self, other):
-        if not isinstance(other, Report):
-            return False
-        return self.subject_code == other.subject_code and self.class_code == other.class_code and self.id == other.id
-
-    def __hash__(self):
-        return hash(self.id, self.subject_code, self.class_code)
-
 
 class Quiz(BaseModel):
     subjects: str
@@ -100,11 +95,15 @@ class Quiz(BaseModel):
     subject_code: str
     class_code: str
     status: str
-    start_date_time: str
-    end_date_time: str
+    start_date_time: datetime
+    end_date_time: datetime
     submission_status: str
     implementation_format: str
     operation: str
+    questions_count: Optional[int] = None
+    evaluation_method: Optional[str] = None
+    description: Optional[str] = None
+    message: Optional[str] = None
 
     def __init__(self, element):
         self.subjects = Parse.space(element.xpath('td')[0].text)
@@ -125,14 +124,6 @@ class Quiz(BaseModel):
         self.submission_status = element.xpath('td')[4].text.strip()
         self.implementation_format = element.xpath('td')[5].text.strip()
         self.operation = element.xpath('td')[6].text.strip()
-
-    def __eq__(self, other):
-        if not isinstance(other, Quiz):
-            return False
-        return self.subject_code == other.subject_code and self.class_code == other.class_code and self.id == other.id
-
-    def __hash__(self):
-        return hash(self.id, self.subject_code, self.class_code)
 
 
 @app.get('/')
@@ -158,9 +149,8 @@ async def get_reports(session=Depends(manager)):
     return reports
 
 
-@app.get('/report/{id}')
+@app.get('/report/{id}', response_model=Report)
 async def get_report(id: str, subject_code: str, class_code: str, session=Depends(manager)):
-    report = None
     response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
         'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '授業サポート', 'menuCode': 'A02', 'nextPath': '/report/student/searchList/initialize'})
     document = etree.fromstring(response.text)
@@ -171,6 +161,7 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
         '/html/body/div[1]/form[1]/div/input/@value')[0]
+    report = None
     for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
         x = Report(x)
         if x.id == id and x.subject_code == subject_code and x.class_code == class_code:
@@ -185,15 +176,16 @@ async def get_report(id: str, subject_code: str, class_code: str, session=Depend
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
         '/html/body/div[1]/form[1]/div/input/@value')[0]
-    evaluation_method = document.xpath(
-        '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[3]/td')[0].text
-    description = Parse.html_newlines(document.xpath(
-        '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[4]/td')[0].text_content())
+    element = document.xpath(
+        '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table')[0]
+    report.evaluation_method = element.xpath('tr')[3].xpath('td')[0].text
+    report.description = Parse.html_newlines(
+        element.xpath('tr')[4].xpath('td')[0].text_content())
     # required to replace innerHtml
-    message = Parse.html_newlines(document.xpath(
-        '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/table/tr[5]/td')[0].text_content())
+    report.message = Parse.html_newlines(
+        element.xpath('tr')[5].xpath('td')[0].text_content())
     # required to replace innerHtml
-    return {'evaluation_method': evaluation_method, 'description': description, 'message': message}
+    return report
 
 
 @app.get('/quizzes', response_model=List[Quiz])
@@ -212,6 +204,47 @@ async def get_quizzes(session=Depends(manager)):
     for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
         quizzes.append(Quiz(x))
     return quizzes
+
+
+@app.get('/quiz/{id}', response_model=Quiz)
+async def get_quiz(id: str, subject_code: str, class_code: str, session=Depends(manager)):
+    response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
+        'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '小テスト一覧', 'menuCode': 'A03', 'nextPath': '/test/student/searchList/initialize'})
+    document = etree.fromstring(response.text)
+    session['apache_token'] = document.xpath(
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
+    response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/report/student/searchList/search', data={
+        'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'testId': '', 'hidSchoolYear': '', 'hidSemesterCode': '', 'hidSubjectCode': '', 'hidClassCode': '', 'entranceDiv': '', 'backPath': '', 'listSchoolYear': '', 'listSubjectCode': '', 'listClassCode': '', 'schoolYear': '2022', 'semesterCode': '1', 'subjectDispCode': '', 'operationFormat': ['1', '2'], 'searchList_length': '-1', '_searchConditionDisp.accordionSearchCondition': 'true', '_screenIdentifier': 'SC_A03_01_G', '_screenInfoDisp': '', '_scrollTop': '0'})
+    document = etree.fromstring(response.text)
+    session['apache_token'] = document.xpath(
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
+    quiz = None
+    for x in document.xpath('//*[@id="searchList"]/tbody/tr'):
+        x = Quiz(x)
+        if x.id == id and x.subject_code == subject_code and x.class_code == class_code:
+            quiz = x
+            break
+    if quiz is None:
+        raise HTTPException(
+            status_code=404, detail="Not Found")
+    response = session['session'].post(
+        'https://gakujo.shizuoka.ac.jp/portal/test/student/searchList/forwardSubmitRef', data={
+            'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'testId': id, 'hidSchoolYear': '', 'hidSemesterCode': '', 'hidSubjectCode': '', 'hidClassCode': '', 'entranceDiv': '', 'backPath': '', 'listSchoolYear':  '2022', 'listSubjectCode': subject_code, 'listClassCode': class_code, 'schoolYear': '2022', 'semesterCode': '0', 'subjectDispCode': '', 'operationFormat': ['1', '2'], 'searchList_length': '-1', '_searchConditionDisp.accordionSearchCondition': 'true', '_screenIdentifier': 'SC_A03_01_G', '_screenInfoDisp': '', '_scrollTop': '0'})
+    document = etree.fromstring(response.text)
+    session['apache_token'] = document.xpath(
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
+    element = document.xpath(
+        '/html/body/div[2]/div[1]/div/form/div[3]/div/div/div/div/table')[0]
+    quiz.questions_count = int(element.xpath('tr')[2].xpath('td')[
+                               0].text.replace('問', '').strip())
+    quiz.evaluation_method = element.xpath('tr')[3].xpath('td')[0].text
+    quiz.description = Parse.html_newlines(
+        element.xpath('tr')[4].xpath('td')[0].text_content())
+    # required to replace innerHtml
+    quiz.message = Parse.html_newlines(
+        element.xpath('tr')[6].xpath('td')[0].text_content())
+    # required to replace innerHtml
+    return quiz
 
 
 @manager.user_loader
