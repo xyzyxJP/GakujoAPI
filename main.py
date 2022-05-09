@@ -275,13 +275,13 @@ async def get_class_contact(index: int, session=Depends(manager)):
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
         '/html/body/div[1]/form[1]/div/input/@value')[0]
-    if len(document.xpath('//*[@id="tbl_A01_01"]/tbody/tr')) >= index:
+    if len(document.xpath('//*[@id="tbl_A01_01"]/tbody/tr')) <= index:
         raise HTTPException(
             status_code=404, detail="Not Found")
     class_contact = element_to_class_contact(
         document.xpath('//*[@id="tbl_A01_01"]/tbody/tr')[index])
     response = session['session'].post(
-        'https://gakujo.shizuoka.ac.jp/portal/classcontact/classContactList/goDetail/' + index, data={
+        'https://gakujo.shizuoka.ac.jp/portal/classcontact/classContactList/goDetail/' + str(index), data={
             'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'teacherCode': '', 'schoolYear': '2022', 'semesterCode': '0', 'subjectDispCode': '', 'searchKeyWord': '', 'checkSearchKeywordTeacherUserName': 'on', 'checkSearchKeywordSubjectName': 'on', 'checkSearchKeywordTitle':  'on', 'contactKindCode': '', 'targetDateStart': '', 'targetDateEnd': '', 'reportDateStart': '2022/03/01', 'reportDateEnd': '', 'requireResponse': '', 'studentCode': '', 'studentName': '', 'tbl_A01_01_length': '-1', '_searchConditionDisp.accordionSearchCondition': 'false', '_screenIdentifier': 'SC_A01_01', '_screenInfoDisp': 'true', '_scrollTop': '0'})
     document = etree.fromstring(response.text)
     session['apache_token'] = document.xpath(
@@ -289,7 +289,16 @@ async def get_class_contact(index: int, session=Depends(manager)):
     element = document.xpath(
         '/html/body/div[2]/div/div/form/div[3]/div/div/div/table')[0]
     class_contact.contact_type = element.xpath('tr')[0].xpath('td')[0].text
-
+    class_contact.content = Parse.html_newlines(
+        element.xpath('tr')[2].xpath('td')[0].text_content())
+    class_contact.file_link_release = Parse.space(
+        element.xpath('tr')[4].xpath('td')[0].text)
+    class_contact.reference_url = Parse.space(
+        element.xpath('tr')[5].xpath('td')[0].text)
+    class_contact.severity = Parse.space(
+        element.xpath('tr')[6].xpath('td')[0].text)
+    class_contact.web_reply_request = element.xpath('tr')[8].xpath('td')[
+        0].text
     return class_contact
 
 
