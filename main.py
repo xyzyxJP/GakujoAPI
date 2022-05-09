@@ -39,13 +39,6 @@ class Parse:
     def html_newlines(value):
         return re.sub('[\r\n]+', html.unescape(value).replace('<br>', ' \r\n').strip('\r').strip('\n'), '\r\n', re.MULTILINE).strip()
 
-    @staticmethod
-    def delta_time(delta, pattern):
-        d = {'d': delta.days}
-        d['h'], rem = divmod(delta.seconds, 3600)
-        d['m'], d['s'] = divmod(rem, 60)
-        return pattern.format(**d)
-
 
 class Report(BaseModel):
     subjects: str
@@ -106,6 +99,29 @@ def element_to_quiz(element):
         element.xpath('td')[1].xpath('a')[0].attrib['onclick'], 5), status=element.xpath('td')[2].text.strip(), start_date_time=Parse.time_span(
             element.xpath('td')[3].text, 0), end_date_time=Parse.time_span(
             element.xpath('td')[3].text, 1), submission_status=element.xpath('td')[4].text.strip(), implementation_format=element.xpath('td')[5].text.strip(), operation=element.xpath('td')[6].text.strip())
+
+
+class ClassContact(BaseModel):
+    subjects: str
+    teacher_name: str
+    contact_type: Optional[str] = None
+    title: str
+    content: Optional[str] = None
+    file_link_release: Optional[str] = None
+    reference_url: Optional[str] = None
+    severity: Optional[str] = None
+    target_date_time: Optional[datetime] = None
+    contact_date_time: datetime
+    web_reply_request: Optional[str] = None
+
+
+def element_to_class_contact(element):
+    class_contact = ClassContact(subjects=Parse.space(element.xpath('td')[1].text), teacher_name=element.xpath(
+        'td')[2].text.strip(), title=html.unescape(element.xpath('td')[3].xpath('a')[0].text).strip(), contact_date_time=parser.parse(element.xpath('td')[6].text))
+    if element.xpath('td')[5].text != None:
+        class_contact.target_date_time = parser.parse(
+            element.xpath('td')[5].text.strip())
+    return class_contact
 
 
 @ app.get('/')
@@ -227,6 +243,24 @@ async def get_quiz(id: str, subject_code: str, class_code: str, session=Depends(
         element.xpath('tr')[6].xpath('td')[0].text_content())
     # required to replace innerHtml
     return quiz
+
+
+@ app.get('/class_contacts')
+async def get_class_contacts(session=Depends(manager)):
+    response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/common/generalPurpose/', data={
+        'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'headTitle': '授業連絡一覧', 'menuCode': 'A01', 'nextPath': '/classcontact/classContactList/initialize'})
+    document = etree.fromstring(response.text)
+    session['apache_token'] = document.xpath(
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
+    response = session['session'].post('https://gakujo.shizuoka.ac.jp/portal/classcontact/classContactList/selectClassContactList', data={
+        'org.apache.struts.taglib.html.TOKEN': session['apache_token'], 'teacherCode': '', 'schoolYear': '2022', 'semesterCode': '0', 'subjectDispCode': '', 'searchKeyWord': '', 'checkSearchKeywordTeacherUserName': 'on', 'checkSearchKeywordSubjectName': 'on', 'checkSearchKeywordTitle': 'on', 'contactKindCode': '', 'targetDateStart': '', 'targetDateEnd': '', 'reportDateStart': '2022/03/01'})
+    document = etree.fromstring(response.text)
+    session['apache_token'] = document.xpath(
+        '/html/body/div[1]/form[1]/div/input/@value')[0]
+    class_contacts = []
+    for x in document.xpath('//*[@id="tbl_A01_01"]/tbody/tr'):
+        class_contacts.append(element_to_class_contact(x))
+    return class_contacts
 
 
 @ manager.user_loader
