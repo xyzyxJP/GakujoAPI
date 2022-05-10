@@ -13,9 +13,13 @@ import requests
 from lxml import html as etree
 from dateutil import parser
 from typing import List, Optional
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 # uvicorn main:app --reload
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 manager = LoginManager(
     '1e4179dc8adab15e29cbcbb588af4a71bd54e7cfc99d0652', '/auth')
 
@@ -123,6 +127,14 @@ def element_to_class_contact(element):
             element.xpath('td')[5].text.strip())
     return class_contact
 
+@ app.get('/docs', include_in_schema=False)
+async def swagger_ui_html() -> HTMLResponse:
+    return get_swagger_ui_html(
+        title='GakujoAPI',
+        init_oauth=app.swagger_ui_init_oauth,
+        swagger_favicon_url="/static/favicon.png",
+        swagger_ui_parameters=app.swagger_ui_parameters,
+    )
 
 @ app.get('/')
 async def index(session=Depends(manager)):
@@ -302,7 +314,7 @@ async def get_class_contact(index: int, session=Depends(manager)):
     return class_contact
 
 
-@ manager.user_loader
+@ manager.user_loader()
 def load_session(user_id: str):
     return next((x for x in sessions if x['user_id'] == user_id), None)
 
