@@ -1,0 +1,6 @@
+anyio==3.5.0
+fastapi==0.75.2
+fastapi-login==1.8.0
+lxml==4.8.0
+requests==2.27.1
+uvicorn==0.17.6

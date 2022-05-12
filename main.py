@@ -1,21 +1,19 @@
-from ast import Not
-from datetime import date, datetime
+import hashlib
 import html
 import re
-from webbrowser import get
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi_login import LoginManager
-from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel
-import hashlib
-import requests
-from lxml import html as etree
-from dateutil import parser
+from datetime import datetime
 from typing import List, Optional
+
+import requests
+from dateutil import parser
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from fastapi_login import LoginManager
+from lxml import html as etree
+from pydantic import BaseModel
 
 # uvicorn main:app --reload
 app = FastAPI()
@@ -127,6 +125,7 @@ def element_to_class_contact(element):
             element.xpath('td')[5].text.strip())
     return class_contact
 
+
 @ app.get('/docs', include_in_schema=False)
 async def swagger_ui_html() -> HTMLResponse:
     return get_swagger_ui_html(
@@ -135,6 +134,7 @@ async def swagger_ui_html() -> HTMLResponse:
         swagger_favicon_url="/static/favicon.png",
         swagger_ui_parameters=app.swagger_ui_parameters,
     )
+
 
 @ app.get('/')
 async def index(session=Depends(manager)):
