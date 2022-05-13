@@ -136,8 +136,8 @@ async def swagger_ui_html() -> HTMLResponse:
     )
 
 
-@ app.get('/')
-async def index(session=Depends(manager)):
+@ app.get('/status')
+async def get_status(session=Depends(manager)):
     return {'user_id': session['user_id'], 'password': session['password'], 'apache_token': session['apache_token'], 'login_datetime': session['login_datetime']}
 
 
@@ -353,7 +353,7 @@ def login(user_id, password):
 
 
 @ app.post('/auth')
-async def auth(data: OAuth2PasswordRequestForm = Depends()):
+async def post_auth(data: OAuth2PasswordRequestForm = Depends()):
     user_id = data.username
     password = data.password
     session = load_session(user_id)
@@ -371,3 +371,9 @@ async def auth(data: OAuth2PasswordRequestForm = Depends()):
                 status_code=401, detail="Unauthorized")
     access_token = manager.create_access_token(data=dict(sub=user_id))
     return {'access_token': access_token, 'token_type': 'bearer'}
+
+
+@ app.delete('/logout')
+async def delete_logout(session=Depends(manager)):
+    sessions.remove(session)
+    return {'message': 'logout', 'count': len(sessions)}
