@@ -126,16 +126,6 @@ def element_to_class_contact(element):
     return class_contact
 
 
-@ app.get('/docs', include_in_schema=False)
-async def swagger_ui_html() -> HTMLResponse:
-    return get_swagger_ui_html(
-        title='GakujoAPI',
-        init_oauth=app.swagger_ui_init_oauth,
-        swagger_favicon_url="/static/favicon.png",
-        swagger_ui_parameters=app.swagger_ui_parameters,
-    )
-
-
 @ app.post('/auth')
 async def post_auth(data: OAuth2PasswordRequestForm = Depends()):
     user_id = data.username
@@ -155,8 +145,6 @@ async def post_auth(data: OAuth2PasswordRequestForm = Depends()):
                 status_code=401, detail="Unauthorized")
     access_token = manager.create_access_token(data=dict(sub=user_id))
     return {'access_token': access_token, 'token_type': 'bearer'}
-
-1
 
 
 @ app.get('/status')
