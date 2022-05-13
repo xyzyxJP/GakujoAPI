@@ -136,6 +136,29 @@ async def swagger_ui_html() -> HTMLResponse:
     )
 
 
+@ app.post('/auth')
+async def post_auth(data: OAuth2PasswordRequestForm = Depends()):
+    user_id = data.username
+    password = data.password
+    session = load_session(user_id)
+    if session is None:
+        status = login(user_id, password)
+        if status is False:
+            raise HTTPException(
+                status_code=401, detail="Unauthorized")
+        sessions.append(status)
+    else:
+        hashed_password = hashlib.sha512(
+            str(password).encode('utf-8')).hexdigest()
+        if session['password'] != hashed_password:
+            raise HTTPException(
+                status_code=401, detail="Unauthorized")
+    access_token = manager.create_access_token(data=dict(sub=user_id))
+    return {'access_token': access_token, 'token_type': 'bearer'}
+
+1
+
+
 @ app.get('/status')
 async def get_status(session=Depends(manager)):
     return {'user_id': session['user_id'], 'password': session['password'], 'apache_token': session['apache_token'], 'login_datetime': session['login_datetime']}
@@ -350,27 +373,6 @@ def login(user_id, password):
         '/html/body/div[1]/form[1]/div/input/@value')[0]
     login_datetime = datetime.now()
     return {'user_id': user_id, 'password': hashed_password, 'session': session, 'apache_token': apache_token, 'login_datetime': login_datetime}
-
-
-@ app.post('/auth')
-async def post_auth(data: OAuth2PasswordRequestForm = Depends()):
-    user_id = data.username
-    password = data.password
-    session = load_session(user_id)
-    if session is None:
-        status = login(user_id, password)
-        if status is False:
-            raise HTTPException(
-                status_code=401, detail="Unauthorized")
-        sessions.append(status)
-    else:
-        hashed_password = hashlib.sha512(
-            str(password).encode('utf-8')).hexdigest()
-        if session['password'] != hashed_password:
-            raise HTTPException(
-                status_code=401, detail="Unauthorized")
-    access_token = manager.create_access_token(data=dict(sub=user_id))
-    return {'access_token': access_token, 'token_type': 'bearer'}
 
 
 @ app.delete('/logout')
